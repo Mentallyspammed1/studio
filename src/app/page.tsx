@@ -36,6 +36,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
+import { TradeAnalysis } from '@/components/dashboard/trade-analysis';
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/' },
@@ -101,6 +102,9 @@ export default function DashboardPage() {
               <PositionManager />
               <RiskAssessment />
             </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:gap-8">
+            <TradeAnalysis />
           </div>
         </main>
       </SidebarInset>
