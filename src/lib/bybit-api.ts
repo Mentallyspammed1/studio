@@ -1,6 +1,7 @@
 'use server';
 
-import { format } from 'date-fns';
+import { fetchKlineData, KlineData, fetchOrderBook, OrderBookData } from '@/services/bybitService';
+import { getWalletBalance, getAccountInformation, getAssetInformation } from '@/services/bybitAccountService';
 
 const API_BASE = 'https://api.bybit.com';
 
@@ -34,111 +35,85 @@ export async function fetchSymbols(): Promise<string[]> {
     return data.result.list.map(item => item.symbol).sort();
 }
 
+export { fetchKlineData, KlineData, fetchOrderBook, OrderBookData, getWalletBalance, getAccountInformation, getAssetInformation };
 
-interface KlineResult {
-  symbol: string;
-  category: string;
-  list: string[][];
+// Tickers
+interface TickersResult {
+    list: TickerData[];
 }
 
-export interface KlineData {
-  date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
+export interface TickerData {
+    symbol: string;
+    lastPrice: string;
+    highPrice24h: string;
+    lowPrice24h: string;
+    prevPrice24h: string;
+    price24hPcnt: string;
+    turnover24h: string;
+    volume24h: string;
 }
 
-interface FetchKlineParams {
-  symbol: string;
-  interval: string;
-  limit?: number;
-  start?: number;
-  end?: number;
+interface FetchTickersParams {
+    symbol?: string;
 }
 
-export async function fetchKlineData({ symbol, interval, limit = 200, start, end }: FetchKlineParams): Promise<KlineData[]> {
-  const params = new URLSearchParams({
-    category: 'linear',
-    symbol,
-    interval,
-    limit: limit.toString(),
-  });
-  if (start) params.append('start', start.toString());
-  if (end) params.append('end', end.toString());
+export async function fetchTickers({ symbol }: FetchTickersParams = {}): Promise<TickerData[]> {
+    const params = new URLSearchParams({
+        category: 'linear',
+    });
+    if (symbol) {
+        params.append('symbol', symbol);
+    }
 
-  const response = await fetch(`${API_BASE}/v5/market/kline?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch Bybit kline data: ${response.statusText}`);
-  }
+    const response = await fetch(`${API_BASE}/v5/market/tickers?${params.toString()}`);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch Bybit tickers: ${response.statusText}`);
+    }
 
-  const data: BybitResponse<KlineResult> = await response.json();
-  if (data.retCode !== 0) {
-    throw new Error(`Bybit API error: ${data.retMsg}`);
-  }
+    const data: BybitResponse<TickersResult> = await response.json();
+    if (data.retCode !== 0) {
+        throw new Error(`Bybit API error fetching tickers: ${data.retMsg}`);
+    }
 
-  // If list is empty, it means no data for this symbol/interval
-  if (!data.result.list) {
-    return [];
-  }
-
-  return data.result.list.map(item => ({
-    date: format(new Date(parseInt(item[0])), 'MMM dd'),
-    open: parseFloat(item[1]),
-    high: parseFloat(item[2]),
-    low: parseFloat(item[3]),
-    close: parseFloat(item[4]),
-    volume: parseFloat(item[5]),
-  })).reverse(); // Bybit returns data in descending order
+    return data.result.list;
 }
 
-// Order book
-interface OrderBookResult {
-    s: string; // Symbol
-    b: string[][]; // Bids
-    a: string[][]; // Asks
-    ts: number; // Timestamp
-    u: number; // Update ID
+// Public Trade History
+interface PublicTradeHistoryResult {
+    list: PublicTrade[];
 }
 
-export interface OrderBookData {
-    bids: [string, string][];
-    asks: [string, string][];
-    spread: number;
+export interface PublicTrade {
+    execId: string;
+    symbol: string;
+    price: string;
+    size: string;
+    side: 'Buy' | 'Sell';
+    time: string;
+    isBlockTrade: boolean;
 }
 
-interface FetchOrderBookParams {
+interface FetchPublicTradeHistoryParams {
     symbol: string;
     limit?: number;
 }
 
-export async function fetchOrderBook({ symbol, limit = 10 }: FetchOrderBookParams): Promise<OrderBookData> {
+export async function fetchPublicTradeHistory({ symbol, limit = 50 }: FetchPublicTradeHistoryParams): Promise<PublicTrade[]> {
     const params = new URLSearchParams({
         category: 'linear',
         symbol,
         limit: limit.toString(),
     });
 
-    const response = await fetch(`${API_BASE}/v5/market/orderbook?${params.toString()}`);
+    const response = await fetch(`${API_BASE}/v5/market/recent-trade?${params.toString()}`);
     if (!response.ok) {
-        throw new Error(`Failed to fetch Bybit order book data: ${response.statusText}`);
+        throw new Error(`Failed to fetch Bybit public trade history: ${response.statusText}`);
     }
 
-    const data: BybitResponse<OrderBookResult> = await response.json();
+    const data: BybitResponse<PublicTradeHistoryResult> = await response.json();
     if (data.retCode !== 0) {
-        throw new Error(`Bybit API error: ${data.retMsg}`);
+        throw new Error(`Bybit API error fetching public trade history: ${data.retMsg}`);
     }
 
-    const bids = data.result.b.map(d => [d[0], d[1]] as [string, string]);
-    const asks = data.result.a.map(d => [d[0], d[1]] as [string, string]);
-    
-    const highestBid = bids.length > 0 ? parseFloat(bids[0][0]) : 0;
-    const lowestAsk = asks.length > 0 ? parseFloat(asks[0][0]) : 0;
-
-    return {
-        bids,
-        asks,
-        spread: lowestAsk > 0 && highestBid > 0 ? lowestAsk - highestBid : 0
-    };
+    return data.result.list;
 }
