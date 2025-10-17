@@ -35,12 +35,19 @@ import { generateMarketData } from '@/ai/flows/market-data-generator';
 import type { GenerateMarketDataOutput } from '@/ai/flows/market-data-generator';
 import { useToast } from '@/hooks/use-toast';
 import { timeframes, dataConfig, menuItems } from '@/lib/data';
+import { OrderBook } from '@/components/dashboard/order-book';
+import { SupportResistance } from '@/components/dashboard/support-resistance';
+import { Level2Analysis } from '@/components/dashboard/l2-analysis';
+import type { OrderBookData } from '@/ai/flows/order-book-generator';
+import type { SupportResistanceOutput } from '@/ai/flows/support-resistance-analyzer';
 
 export type ChartData = GenerateMarketDataOutput['data'];
 
 export default function DashboardPage() {
   const pathname = usePathname();
   const [chartData, setChartData] = React.useState<ChartData | null>(null);
+  const [orderBookData, setOrderBookData] = React.useState<OrderBookData | null>(null);
+  const [supportResistance, setSupportResistance] = React.useState<SupportResistanceOutput | null>(null);
   const [isLoadingChart, setIsLoadingChart] = React.useState(true);
   const [timeframe, setTimeframe] = React.useState('1D');
   const { toast } = useToast();
@@ -116,12 +123,18 @@ export default function DashboardPage() {
                 timeframe={timeframe}
                 setTimeframe={setTimeframe}
                 timeframes={timeframes}
+                supportResistance={supportResistance}
               />
             </div>
             <div className="space-y-4 md:space-y-8">
               <StrategyAdvisor />
               <NewsSentiment />
             </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:gap-8 xl:grid-cols-3">
+            <OrderBook chartData={chartData} onData={setOrderBookData} />
+            <SupportResistance chartData={chartData} onData={setSupportResistance} />
+            <Level2Analysis orderBookData={orderBookData} />
           </div>
           <div className="grid grid-cols-1 gap-4 md:gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">

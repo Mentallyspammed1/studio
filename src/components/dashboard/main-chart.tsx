@@ -1,12 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChartTooltipContent } from '@/components/ui/chart';
 import { Skeleton } from '../ui/skeleton';
 import type { ChartData } from '@/app/page';
+import type { SupportResistanceOutput } from '@/ai/flows/support-resistance-analyzer';
 
 interface MainChartProps {
   data: ChartData | null;
@@ -14,9 +15,10 @@ interface MainChartProps {
   timeframe: string;
   setTimeframe: (value: string) => void;
   timeframes: string[];
+  supportResistance: SupportResistanceOutput | null;
 }
 
-export function MainChart({ data, isLoading, timeframe, setTimeframe, timeframes }: MainChartProps) {
+export function MainChart({ data, isLoading, timeframe, setTimeframe, timeframes, supportResistance }: MainChartProps) {
   const handleTabChange = (value: string) => {
     setTimeframe(value);
   };
@@ -63,6 +65,7 @@ export function MainChart({ data, isLoading, timeframe, setTimeframe, timeframes
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(value) => `$${value}`}
+                  domain={['dataMin - 1000', 'dataMax + 1000']}
                 />
                 <Tooltip
                   cursor={{ stroke: 'hsl(var(--accent))', strokeWidth: 1, strokeDasharray: '3 3' }}
@@ -71,6 +74,25 @@ export function MainChart({ data, isLoading, timeframe, setTimeframe, timeframes
                 <Line type="monotone" dataKey="price" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="ema20" stroke="hsl(var(--chart-1))" strokeWidth={1.5} dot={false} />
                 <Line type="monotone" dataKey="sma50" stroke="hsl(var(--chart-2))" strokeWidth={1.5} dot={false} />
+
+                {supportResistance?.support.map((level, index) => (
+                    <ReferenceLine 
+                      key={`support-${index}`} 
+                      y={level} 
+                      label={{ value: `S${index + 1}`, position: 'right', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                      stroke="hsl(var(--chart-2))" 
+                      strokeDasharray="3 3" 
+                    />
+                ))}
+                {supportResistance?.resistance.map((level, index) => (
+                    <ReferenceLine 
+                      key={`resistance-${index}`} 
+                      y={level} 
+                      label={{ value: `R${index + 1}`, position: 'right', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                      stroke="hsl(var(--chart-5))" 
+                      strokeDasharray="3 3" 
+                    />
+                ))}
               </LineChart>
             </ResponsiveContainer>
           )}
