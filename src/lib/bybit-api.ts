@@ -3,7 +3,6 @@
 import { format } from 'date-fns';
 
 const API_BASE = 'https://api.bybit.com';
-const SYMBOL = 'BTCUSDT';
 
 // Define interfaces for API responses
 interface BybitResponse<T> {
@@ -13,6 +12,28 @@ interface BybitResponse<T> {
   retExtInfo: {};
   time: number;
 }
+
+// Symbols
+interface InstrumentsInfoResult {
+    list: { symbol: string }[];
+    nextPageCursor: string;
+}
+export async function fetchSymbols(): Promise<string[]> {
+    const params = new URLSearchParams({
+        category: 'linear',
+        limit: '1000' // Fetch a large number of symbols
+    });
+    const response = await fetch(`${API_BASE}/v5/market/instruments-info?${params.toString()}`);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch Bybit symbols: ${response.statusText}`);
+    }
+    const data: BybitResponse<InstrumentsInfoResult> = await response.json();
+    if (data.retCode !== 0) {
+        throw new Error(`Bybit API error fetching symbols: ${data.retMsg}`);
+    }
+    return data.result.list.map(item => item.symbol).sort();
+}
+
 
 interface KlineResult {
   symbol: string;
@@ -30,16 +51,17 @@ export interface KlineData {
 }
 
 interface FetchKlineParams {
+  symbol: string;
   interval: string;
   limit?: number;
   start?: number;
   end?: number;
 }
 
-export async function fetchKlineData({ interval, limit = 200, start, end }: FetchKlineParams): Promise<KlineData[]> {
+export async function fetchKlineData({ symbol, interval, limit = 200, start, end }: FetchKlineParams): Promise<KlineData[]> {
   const params = new URLSearchParams({
     category: 'linear',
-    symbol: SYMBOL,
+    symbol,
     interval,
     limit: limit.toString(),
   });
@@ -54,6 +76,11 @@ export async function fetchKlineData({ interval, limit = 200, start, end }: Fetc
   const data: BybitResponse<KlineResult> = await response.json();
   if (data.retCode !== 0) {
     throw new Error(`Bybit API error: ${data.retMsg}`);
+  }
+
+  // If list is empty, it means no data for this symbol/interval
+  if (!data.result.list) {
+    return [];
   }
 
   return data.result.list.map(item => ({
@@ -82,13 +109,14 @@ export interface OrderBookData {
 }
 
 interface FetchOrderBookParams {
+    symbol: string;
     limit?: number;
 }
 
-export async function fetchOrderBook({ limit = 10 }: FetchOrderBookParams = {}): Promise<OrderBookData> {
+export async function fetchOrderBook({ symbol, limit = 10 }: FetchOrderBookParams): Promise<OrderBookData> {
     const params = new URLSearchParams({
         category: 'linear',
-        symbol: SYMBOL,
+        symbol,
         limit: limit.toString(),
     });
 
@@ -111,6 +139,6 @@ export async function fetchOrderBook({ limit = 10 }: FetchOrderBookParams = {}):
     return {
         bids,
         asks,
-        spread: lowestAsk - highestBid
+        spread: lowestAsk > 0 && highestBid > 0 ? lowestAsk - highestBid : 0
     };
 }

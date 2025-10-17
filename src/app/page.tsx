@@ -40,13 +40,14 @@ import type { OrderBookData } from '@/lib/bybit-api';
 import type { SupportResistanceOutput } from '@/ai/flows/support-resistance-analyzer';
 import { fetchKlineData, type KlineData } from '@/lib/bybit-api';
 import { calculateIndicators } from '@/ai/flows/indicator-calculator';
+import { SymbolProvider, useSymbol } from '@/contexts/symbol-context';
 
 
 export type ChartData = Awaited<ReturnType<typeof calculateIndicators>>['data'];
 
-
-export default function DashboardPage() {
+function DashboardContent() {
   const pathname = usePathname();
+  const { symbol } = useSymbol();
   const [chartData, setChartData] = React.useState<ChartData | null>(null);
   const [orderBookData, setOrderBookData] = React.useState<OrderBookData | null>(null);
   const [supportResistance, setSupportResistance] = React.useState<SupportResistanceOutput | null>(null);
@@ -54,8 +55,10 @@ export default function DashboardPage() {
   const [timeframe, setTimeframe] = React.useState('1D');
   const { toast } = useToast();
 
-  const fetchChartData = React.useCallback(async (tf: string) => {
+  const fetchChartData = React.useCallback(async (tf: string, currentSymbol: string) => {
     setIsLoadingChart(true);
+    setChartData(null); // Clear previous chart data
+    setSupportResistance(null); // Clear previous S/R levels
     try {
       // Map our timeframe to Bybit's interval
       const intervalMap: { [key: string]: string } = {
@@ -65,8 +68,13 @@ export default function DashboardPage() {
         '1W': 'W',
       };
       const bybitInterval = intervalMap[tf];
-      const rawKlineData = await fetchKlineData({ interval: bybitInterval, limit: 100 });
+      const rawKlineData = await fetchKlineData({ symbol: currentSymbol, interval: bybitInterval, limit: 100 });
       
+      if (rawKlineData.length === 0) {
+        setChartData([]); // Set to empty array to indicate no data
+        return;
+      }
+
       const prices = rawKlineData.map(d => d.close);
       const indicatorData = await calculateIndicators({ prices });
 
@@ -76,7 +84,7 @@ export default function DashboardPage() {
       toast({
         variant: 'destructive',
         title: 'Chart Error',
-        description: 'Could not load chart data from Bybit. Please try again.',
+        description: 'Could not load chart data. The symbol may not be supported.',
       });
       setChartData([]);
     } finally {
@@ -85,8 +93,10 @@ export default function DashboardPage() {
   }, [toast]);
 
   React.useEffect(() => {
-    fetchChartData(timeframe);
-  }, [fetchChartData, timeframe]);
+    if (symbol) {
+      fetchChartData(timeframe, symbol);
+    }
+  }, [fetchChartData, timeframe, symbol]);
 
 
   return (
@@ -161,5 +171,13 @@ export default function DashboardPage() {
         </main>
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <SymbolProvider>
+      <DashboardContent />
+    </SymbolProvider>
   );
 }

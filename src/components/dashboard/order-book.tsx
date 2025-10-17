@@ -21,6 +21,7 @@ import { Skeleton } from '../ui/skeleton';
 import { fetchOrderBook, type OrderBookData } from '@/lib/bybit-api';
 import type { ChartData } from '@/app/page';
 import { useToast } from '@/hooks/use-toast';
+import { useSymbol } from '@/contexts/symbol-context';
 
 interface OrderBookProps {
     chartData: ChartData | null;
@@ -31,15 +32,17 @@ export function OrderBook({ onData }: OrderBookProps) {
   const [data, setData] = React.useState<OrderBookData | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
+  const { symbol } = useSymbol();
 
   const fetchOrderBookData = React.useCallback(async () => {
     // No setIsLoading(true) here to allow silent refresh
     try {
-      const result = await fetchOrderBook({ limit: 10 });
+      const result = await fetchOrderBook({ symbol, limit: 10 });
       setData(result);
       onData(result);
     } catch (error) {
       console.error('Error fetching order book:', error);
+      setData(null); // Clear old data on error
       toast({
         variant: 'destructive',
         title: 'Order Book Error',
@@ -48,13 +51,14 @@ export function OrderBook({ onData }: OrderBookProps) {
     } finally {
         if(isLoading) setIsLoading(false);
     }
-  }, [toast, onData, isLoading]);
+  }, [toast, onData, isLoading, symbol]);
 
   React.useEffect(() => {
-    fetchOrderBookData();
+    setIsLoading(true);
+    fetchOrderBookData(); // Initial fetch for new symbol
     const interval = setInterval(fetchOrderBookData, 5000); // Refresh every 5s
     return () => clearInterval(interval);
-  }, [fetchOrderBookData]);
+  }, [symbol]);
 
 
   return (
@@ -62,16 +66,20 @@ export function OrderBook({ onData }: OrderBookProps) {
       <CardHeader>
         <CardTitle className="font-headline text-lg flex items-center gap-2">
           <BookOpen className="h-5 w-5 text-primary" />
-          Order Book (BTC/USD)
+          Order Book ({symbol})
         </CardTitle>
         <CardDescription>
           Real-time market depth and liquidity from Bybit.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {isLoading && !data ? (
+        {isLoading ? (
           <div className="space-y-2">
             {[...Array(10)].map((_, i) => <Skeleton key={i} className="h-6 w-full" />)}
+          </div>
+        ) : !data || data.bids.length === 0 && data.asks.length === 0 ? (
+          <div className="flex items-center justify-center h-[300px]">
+            <p className="text-muted-foreground text-sm">No order book data for this symbol.</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 h-[300px] overflow-hidden">
@@ -89,8 +97,8 @@ export function OrderBook({ onData }: OrderBookProps) {
                     <TableBody>
                     {data?.bids.map(([price, size]) => (
                         <TableRow key={price} className="relative">
-                            <TableCell className="font-mono text-sm text-green-400 p-2">{Number(price).toFixed(2)}</TableCell>
-                            <TableCell className="font-mono text-sm text-right p-2">{Number(size).toFixed(4)}</TableCell>
+                            <TableCell className="font-mono text-sm text-green-400 p-2">{Number(price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                            <TableCell className="font-mono text-sm text-right p-2">{Number(size).toLocaleString(undefined, {minimumFractionDigits: 4, maximumFractionDigits: 4})}</TableCell>
                         </TableRow>
                     ))}
                     </TableBody>
@@ -111,8 +119,8 @@ export function OrderBook({ onData }: OrderBookProps) {
                         <TableBody>
                         {data?.asks.map(([price, size]) => (
                             <TableRow key={price}>
-                                <TableCell className="font-mono text-sm text-red-400 p-2">{Number(price).toFixed(2)}</TableCell>
-                                <TableCell className="font-mono text-sm text-right p-2">{Number(size).toFixed(4)}</TableCell>
+                                <TableCell className="font-mono text-sm text-red-400 p-2">{Number(price).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                                <TableCell className="font-mono text-sm text-right p-2">{Number(size).toLocaleString(undefined, {minimumFractionDigits: 4, maximumFractionDigits: 4})}</TableCell>
                             </TableRow>
                         ))}
                         </TableBody>
