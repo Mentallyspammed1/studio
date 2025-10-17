@@ -9,13 +9,14 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 const DataPointSchema = z.object({
   date: z.string().describe("The date for the data point, formatted as 'Mon DD'."),
   price: z.number().describe('The closing price for the data point.'),
   ema20: z.number().describe('The 20-period exponential moving average.'),
   sma50: z.number().describe('The 50-period simple moving average.'),
+  atr: z.number().describe('The Average True Range for the data point.'),
 });
 
 const GenerateMarketDataInputSchema = z.object({
@@ -43,13 +44,13 @@ const prompt = ai.definePrompt({
   name: 'generateMarketDataPrompt',
   input: { schema: GenerateMarketDataInputSchema },
   output: { schema: GenerateMarketDataOutputSchema },
-  prompt: `You are a financial data simulation expert. Generate a realistic series of BTC/USD price data points for the specified timeframe.
+  prompt: `You are a financial data simulation expert. Generate a realistic series of BTC/USD price data points for the specified timeframe, ensuring the data looks like a real trading chart with ups and downs.
 
   Instructions:
   1.  Generate '{{days}}' data points.
   2.  Start with an initial price of {{initialPrice}}.
-  3.  Introduce price changes based on a volatility factor of {{volatility}}. The price should have random but plausible fluctuations.
-  4.  For each data point, calculate a realistic 20-period EMA (ema20) and a 50-period SMA (sma50).
+  3.  Introduce significant price changes based on a volatility factor of {{volatility}}. The price should have random but plausible fluctuations, including noticeable peaks and troughs.
+  4.  For each data point, calculate a realistic 20-period EMA (ema20), a 50-period SMA (sma50), and a 14-period Average True Range (atr).
   5.  The 'date' for each point should be formatted as 'MMM DD' (e.g., 'May 20').
   6.  Ensure prices never go below 1000.
 

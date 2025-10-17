@@ -2,12 +2,9 @@
 
 import * as React from 'react';
 import {
-  DollarSign,
   GanttChartSquare,
   LayoutDashboard,
   Newspaper,
-  Settings,
-  ShieldCheck,
   TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -26,28 +23,54 @@ import { RiskAssessment } from '@/components/dashboard/risk-assessment';
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
   SidebarHeader,
   SidebarInset,
-  SidebarItem,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarProvider,
-  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { TradeAnalysis } from '@/components/dashboard/trade-analysis';
+import { generateMarketData } from '@/ai/flows/market-data-generator';
+import type { GenerateMarketDataOutput } from '@/ai/flows/market-data-generator';
+import { useToast } from '@/hooks/use-toast';
+import { timeframes, dataConfig, menuItems } from '@/lib/data';
 
-const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/' },
-  { id: 'trends', label: 'Trend Analysis', icon: TrendingUp, href: '#' },
-  { id: 'positions', label: 'Positions', icon: GanttChartSquare, href: '#' },
-  { id: 'risk', label: 'Risk', icon: ShieldCheck, href: '#' },
-  { id: 'news', label: 'News Feed', icon: Newspaper, href: '#' },
-];
+export type ChartData = GenerateMarketDataOutput['data'];
 
 export default function DashboardPage() {
   const pathname = usePathname();
+  const [chartData, setChartData] = React.useState<ChartData | null>(null);
+  const [isLoadingChart, setIsLoadingChart] = React.useState(true);
+  const [timeframe, setTimeframe] = React.useState('1D');
+  const { toast } = useToast();
+
+  const fetchChartData = React.useCallback(async (tf: string) => {
+    setIsLoadingChart(true);
+    try {
+      const config = dataConfig[tf];
+      const result = await generateMarketData({
+        timeframe: tf as '1H' | '4H' | '1D' | '1W',
+        ...config,
+      });
+      setChartData(result.data);
+    } catch (error) {
+      console.error('Error generating market data:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Chart Error',
+        description: 'Could not load chart data. Please try again.',
+      });
+      setChartData([]);
+    } finally {
+      setIsLoadingChart(false);
+    }
+  }, [toast]);
+
+  React.useEffect(() => {
+    fetchChartData(timeframe);
+  }, [fetchChartData, timeframe]);
+
 
   return (
     <SidebarProvider>
@@ -87,7 +110,13 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-1 gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
             <div className="xl:col-span-2">
-              <MainChart />
+              <MainChart 
+                data={chartData}
+                isLoading={isLoadingChart}
+                timeframe={timeframe}
+                setTimeframe={setTimeframe}
+                timeframes={timeframes}
+              />
             </div>
             <div className="space-y-4 md:space-y-8">
               <StrategyAdvisor />
@@ -99,8 +128,8 @@ export default function DashboardPage() {
               <TradeHistory />
             </div>
             <div className="space-y-4 md:space-y-8">
-              <PositionManager />
-              <RiskAssessment />
+              <PositionManager chartData={chartData}/>
+              <RiskAssessment chartData={chartData} />
             </div>
           </div>
           <div className="grid grid-cols-1 gap-4 md:gap-8">

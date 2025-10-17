@@ -1,4 +1,13 @@
+import { GanttChartSquare, LayoutDashboard, Newspaper, ShieldCheck, TrendingUp } from "lucide-react";
+
 export const timeframes = ['1H', '4H', '1D', '1W'];
+
+export const dataConfig: { [key: string]: { days: number; volatility: number; initialPrice: number } } = {
+  '1H': { days: 24, volatility: 200, initialPrice: 67500 },
+  '4H': { days: 60, volatility: 800, initialPrice: 67500 },
+  '1D': { days: 30, volatility: 1000, initialPrice: 67500 },
+  '1W': { days: 52, volatility: 3000, initialPrice: 67500 },
+};
 
 export const performanceStats = {
   pnl: { label: 'Total P&L', value: 7845.89, change: 2.1 },
@@ -31,3 +40,11 @@ export const availableStrategies = [
   'Trend Following',
   'Mean Reversion',
 ];
+
+export const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/' },
+    { id: 'trends', label: 'Trend Analysis', icon: TrendingUp, href: '#' },
+    { id: 'positions', label: 'Positions', icon: GanttChartSquare, href: '#' },
+    { id: 'risk', label: 'Risk', icon: ShieldCheck, href: '#' },
+    { id: 'news', label: 'News Feed', icon: Newspaper, href: '#' },
+  ];

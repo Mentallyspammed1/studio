@@ -4,53 +4,19 @@ import * as React from 'react';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { timeframes } from '@/lib/data';
 import { ChartTooltipContent } from '@/components/ui/chart';
-import { generateMarketData, type GenerateMarketDataOutput } from '@/ai/flows/market-data-generator';
 import { Skeleton } from '../ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
+import type { ChartData } from '@/app/page';
 
-type ChartData = GenerateMarketDataOutput['data'];
+interface MainChartProps {
+  data: ChartData | null;
+  isLoading: boolean;
+  timeframe: string;
+  setTimeframe: (value: string) => void;
+  timeframes: string[];
+}
 
-const dataConfig: { [key: string]: { days: number; volatility: number; initialPrice: number } } = {
-  '1H': { days: 24, volatility: 200, initialPrice: 67500 },
-  '4H': { days: 60, volatility: 800, initialPrice: 67500 },
-  '1D': { days: 30, volatility: 1000, initialPrice: 67500 },
-  '1W': { days: 52, volatility: 3000, initialPrice: 67500 },
-};
-
-export function MainChart() {
-  const [data, setData] = React.useState<ChartData | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [timeframe, setTimeframe] = React.useState('1D');
-  const { toast } = useToast();
-
-  const fetchData = React.useCallback(async (tf: string) => {
-    setIsLoading(true);
-    try {
-      const config = dataConfig[tf];
-      const result = await generateMarketData({
-        timeframe: tf as '1H' | '4H' | '1D' | '1W',
-        ...config,
-      });
-      setData(result.data);
-    } catch (error) {
-      console.error('Error generating market data:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Chart Error',
-        description: 'Could not load chart data. Please try again.',
-      });
-      setData([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
-
-  React.useEffect(() => {
-    fetchData(timeframe);
-  }, [fetchData, timeframe]);
-
+export function MainChart({ data, isLoading, timeframe, setTimeframe, timeframes }: MainChartProps) {
   const handleTabChange = (value: string) => {
     setTimeframe(value);
   };
@@ -62,7 +28,7 @@ export function MainChart() {
           <CardTitle className="font-headline text-2xl">BTC/USD Trend Analysis</CardTitle>
           <CardDescription>Real-time market trend visualization</CardDescription>
         </div>
-        <Tabs defaultValue="1D" className="w-auto" onValueChange={handleTabChange}>
+        <Tabs value={timeframe} className="w-auto" onValueChange={handleTabChange}>
           <TabsList>
             {timeframes.map((tf) => (
               <TabsTrigger key={tf} value={tf} disabled={isLoading}>
