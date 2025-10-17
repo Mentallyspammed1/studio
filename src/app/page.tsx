@@ -31,17 +31,19 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { TradeAnalysis } from '@/components/dashboard/trade-analysis';
-import { generateMarketData } from '@/ai/flows/market-data-generator';
-import type { GenerateMarketDataOutput } from '@/ai/flows/market-data-generator';
 import { useToast } from '@/hooks/use-toast';
-import { timeframes, dataConfig, menuItems } from '@/lib/data';
+import { timeframes, menuItems } from '@/lib/data';
 import { OrderBook } from '@/components/dashboard/order-book';
 import { SupportResistance } from '@/components/dashboard/support-resistance';
 import { Level2Analysis } from '@/components/dashboard/l2-analysis';
-import type { OrderBookData } from '@/ai/flows/order-book-generator';
+import type { OrderBookData } from '@/lib/bybit-api';
 import type { SupportResistanceOutput } from '@/ai/flows/support-resistance-analyzer';
+import { fetchKlineData, type KlineData } from '@/lib/bybit-api';
+import { calculateIndicators } from '@/ai/flows/indicator-calculator';
 
-export type ChartData = GenerateMarketDataOutput['data'];
+
+export type ChartData = Awaited<ReturnType<typeof calculateIndicators>>['data'];
+
 
 export default function DashboardPage() {
   const pathname = usePathname();
@@ -55,18 +57,26 @@ export default function DashboardPage() {
   const fetchChartData = React.useCallback(async (tf: string) => {
     setIsLoadingChart(true);
     try {
-      const config = dataConfig[tf];
-      const result = await generateMarketData({
-        timeframe: tf as '1H' | '4H' | '1D' | '1W',
-        ...config,
-      });
-      setChartData(result.data);
+      // Map our timeframe to Bybit's interval
+      const intervalMap: { [key: string]: string } = {
+        '1H': '60',
+        '4H': '240',
+        '1D': 'D',
+        '1W': 'W',
+      };
+      const bybitInterval = intervalMap[tf];
+      const rawKlineData = await fetchKlineData({ interval: bybitInterval, limit: 100 });
+      
+      const prices = rawKlineData.map(d => d.close);
+      const indicatorData = await calculateIndicators({ prices });
+
+      setChartData(indicatorData.data);
     } catch (error) {
-      console.error('Error generating market data:', error);
+      console.error('Error fetching market data:', error);
       toast({
         variant: 'destructive',
         title: 'Chart Error',
-        description: 'Could not load chart data. Please try again.',
+        description: 'Could not load chart data from Bybit. Please try again.',
       });
       setChartData([]);
     } finally {

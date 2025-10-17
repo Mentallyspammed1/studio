@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/card';
 import { analyzeL2Data, type L2AnalysisOutput } from '@/ai/flows/l2-analyzer';
 import { useToast } from '@/hooks/use-toast';
-import { type OrderBookData } from '@/ai/flows/order-book-generator';
+import { type OrderBookData } from '@/lib/bybit-api';
 import { Badge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
 
@@ -27,7 +27,12 @@ export function Level2Analysis({ orderBookData }: Level2AnalysisProps) {
   const fetchAnalysis = React.useCallback(async (orderBook: OrderBookData) => {
     setIsLoading(true);
     try {
-      const result = await analyzeL2Data({ orderBook });
+       const formattedOrderBook = {
+        bids: orderBook.bids.map(([price, size]) => ({ price: Number(price), size: Number(size) })),
+        asks: orderBook.asks.map(([price, size]) => ({ price: Number(price), size: Number(size) })),
+        spread: orderBook.spread,
+      };
+      const result = await analyzeL2Data({ orderBook: formattedOrderBook });
       setAnalysis(result);
     } catch (error) {
       console.error('Error analyzing L2 data:', error);

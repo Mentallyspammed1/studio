@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/table';
 import { BookOpen, Loader2 } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
-import { generateOrderBook, type OrderBookData } from '@/ai/flows/order-book-generator';
+import { fetchOrderBook, type OrderBookData } from '@/lib/bybit-api';
 import type { ChartData } from '@/app/page';
 import { useToast } from '@/hooks/use-toast';
 
@@ -27,44 +27,34 @@ interface OrderBookProps {
     onData: (data: OrderBookData) => void;
 }
 
-export function OrderBook({ chartData, onData }: OrderBookProps) {
+export function OrderBook({ onData }: OrderBookProps) {
   const [data, setData] = React.useState<OrderBookData | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
 
-  const latestPrice = chartData && chartData.length > 0 ? chartData[chartData.length - 1].price : null;
-
-  const fetchOrderBook = React.useCallback(async (price: number) => {
-    setIsLoading(true);
+  const fetchOrderBookData = React.useCallback(async () => {
+    // No setIsLoading(true) here to allow silent refresh
     try {
-      const result = await generateOrderBook({
-        currentPrice: price,
-        depth: 10,
-      });
+      const result = await fetchOrderBook({ limit: 10 });
       setData(result);
       onData(result);
     } catch (error) {
-      console.error('Error generating order book:', error);
+      console.error('Error fetching order book:', error);
       toast({
         variant: 'destructive',
         title: 'Order Book Error',
-        description: 'Could not load order book data.',
+        description: 'Could not load order book data from Bybit.',
       });
     } finally {
-      setIsLoading(false);
+        if(isLoading) setIsLoading(false);
     }
-  }, [toast, onData]);
+  }, [toast, onData, isLoading]);
 
   React.useEffect(() => {
-    if (latestPrice) {
-      fetchOrderBook(latestPrice);
-      const interval = setInterval(() => fetchOrderBook(latestPrice), 15000); // Refresh every 15s
-      return () => clearInterval(interval);
-    } else {
-        setIsLoading(true);
-        setData(null);
-    }
-  }, [latestPrice, fetchOrderBook]);
+    fetchOrderBookData();
+    const interval = setInterval(fetchOrderBookData, 5000); // Refresh every 5s
+    return () => clearInterval(interval);
+  }, [fetchOrderBookData]);
 
 
   return (
@@ -75,7 +65,7 @@ export function OrderBook({ chartData, onData }: OrderBookProps) {
           Order Book (BTC/USD)
         </CardTitle>
         <CardDescription>
-          Real-time market depth and liquidity.
+          Real-time market depth and liquidity from Bybit.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -97,10 +87,10 @@ export function OrderBook({ chartData, onData }: OrderBookProps) {
               <div className="overflow-y-auto">
                 <Table>
                     <TableBody>
-                    {data?.bids.map((bid) => (
-                        <TableRow key={bid.price} className="relative">
-                            <TableCell className="font-mono text-sm text-green-400 p-2">{bid.price.toFixed(2)}</TableCell>
-                            <TableCell className="font-mono text-sm text-right p-2">{bid.size.toFixed(4)}</TableCell>
+                    {data?.bids.map(([price, size]) => (
+                        <TableRow key={price} className="relative">
+                            <TableCell className="font-mono text-sm text-green-400 p-2">{Number(price).toFixed(2)}</TableCell>
+                            <TableCell className="font-mono text-sm text-right p-2">{Number(size).toFixed(4)}</TableCell>
                         </TableRow>
                     ))}
                     </TableBody>
@@ -119,10 +109,10 @@ export function OrderBook({ chartData, onData }: OrderBookProps) {
                 <div className="overflow-y-auto">
                     <Table>
                         <TableBody>
-                        {data?.asks.map((ask) => (
-                            <TableRow key={ask.price}>
-                                <TableCell className="font-mono text-sm text-red-400 p-2">{ask.price.toFixed(2)}</TableCell>
-                                <TableCell className="font-mono text-sm text-right p-2">{ask.size.toFixed(4)}</TableCell>
+                        {data?.asks.map(([price, size]) => (
+                            <TableRow key={price}>
+                                <TableCell className="font-mono text-sm text-red-400 p-2">{Number(price).toFixed(2)}</TableCell>
+                                <TableCell className="font-mono text-sm text-right p-2">{Number(size).toFixed(4)}</TableCell>
                             </TableRow>
                         ))}
                         </TableBody>
@@ -132,9 +122,9 @@ export function OrderBook({ chartData, onData }: OrderBookProps) {
           </div>
         )}
          <div className="mt-4 text-center text-xs text-muted-foreground flex justify-between items-center">
-            {isLoading && data && <Loader2 className="size-4 animate-spin text-primary" />}
+            {!isLoading && <Loader2 className="size-4 animate-spin text-primary" />}
             {data && <p>Spread: <span className="font-mono">${data.spread.toFixed(2)}</span></p>}
-            <p>Updates automatically</p>
+            <p>Live updates</p>
           </div>
       </CardContent>
     </Card>
