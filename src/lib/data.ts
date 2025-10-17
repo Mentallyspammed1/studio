@@ -1,34 +1,3 @@
-const generateChartData = (days: number, initialPrice: number, volatility: number) => {
-  const data = [];
-  let price = initialPrice;
-  const today = new Date();
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - i);
-    price += (Math.random() - 0.5) * volatility;
-    price = Math.max(price, 1000); 
-
-    const ema20 = price * (1 - Math.random() * 0.05);
-    const sma50 = price * (1 + Math.random() * 0.05);
-
-    data.push({
-      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      price: parseFloat(price.toFixed(2)),
-      ema20: parseFloat(ema20.toFixed(2)),
-      sma50: parseFloat(sma50.toFixed(2)),
-    });
-  }
-  return data;
-};
-
-
-export const chartData = {
-  hourly: generateChartData(24, 67500, 200),
-  fourHourly: generateChartData(60, 67500, 800),
-  daily: generateChartData(30, 67500, 1000),
-  weekly: generateChartData(52, 67500, 3000),
-};
-
 export const timeframes = ['1H', '4H', '1D', '1W'];
 
 export const performanceStats = {
