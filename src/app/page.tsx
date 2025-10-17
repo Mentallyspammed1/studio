@@ -2,10 +2,8 @@
 
 import * as React from 'react';
 import {
-  GanttChartSquare,
+  Save,
   LayoutDashboard,
-  Newspaper,
-  TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -29,6 +27,8 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarProvider,
+  SidebarFooter,
+  SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { TradeAnalysis } from '@/components/dashboard/trade-analysis';
 import { useToast } from '@/hooks/use-toast';
@@ -128,6 +128,20 @@ function DashboardContent() {
             ))}
           </SidebarMenu>
         </SidebarContent>
+        <SidebarSeparator />
+        <SidebarFooter>
+            <SidebarMenu>
+                 <SidebarMenuItem>
+                    <SidebarMenuButton tooltip={{children: "Save version"}}>
+                        <Save />
+                        <span>Save</span>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
+           <div className="flex items-center justify-center p-2 group-data-[collapsible=icon]:hidden">
+                <span className="text-xs text-muted-foreground">Version {process.env.APP_VERSION}</span>
+            </div>
+        </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <Header />
